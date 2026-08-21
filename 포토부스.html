@@ -2475,9 +2475,11 @@ var qrcode = function() {
   var GAP_BETWEEN_SHOTS_MS = 900;
   var AUTO_RESET_MS = 45000;
 
-  var CELL_W = 600, CELL_H = 440, GAP = 16, HEADER_H = 130, FOOTER_H = 90;
-  var STRIP_W = CELL_W + 40;
+  var CELL_W = 580, CELL_H = 420, GAP = 36, HEADER_H = 192, FOOTER_H = 120, RING = 10;
+  var STRIP_W = CELL_W + RING * 2 + 40;
   var STRIP_H = HEADER_H + SHOT_COUNT * CELL_H + (SHOT_COUNT - 1) * GAP + FOOTER_H;
+  var ACCENT_COLORS = ["#FF8A65", "#FFD54F", "#F48FB1", "#81C784"];
+  var DIVIDER_EMOJI = ["🌱", "⭐", "🎈", "✨"];
 
   var els = {};
   ["screen-start","screen-camera","screen-processing","screen-result",
@@ -2627,42 +2629,140 @@ var qrcode = function() {
     c.width = STRIP_W; c.height = STRIP_H;
     var ctx = c.getContext("2d");
 
-    ctx.fillStyle = "#EAF6E9";
-    ctx.fillRect(0, 0, STRIP_W, STRIP_H);
+    drawStripBackground(ctx);
+    drawStripHeader(ctx);
 
-    // 헤더: 로고 + 타이틀
-    try { ctx.drawImage(logoImg, STRIP_W/2 - 34, 14, 68, 68); } catch(e){}
-    ctx.fillStyle = "#2E4A2E";
-    ctx.textAlign = "center";
-    ctx.font = "bold 30px 'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
-    ctx.fillText("새싹나라유치원", STRIP_W/2, 112);
-
-    // 사진 4장
     var y = HEADER_H;
     for (var i = 0; i < state.frames.length; i++){
-      var x = (STRIP_W - CELL_W) / 2;
+      var xRing = (STRIP_W - (CELL_W + RING * 2)) / 2;
+      var xPhoto = xRing + RING;
+      var color = ACCENT_COLORS[i % ACCENT_COLORS.length];
+
+      // 컬러 스티커 링 (사진 뒤에 깔리는 알록달록한 테두리)
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.shadowColor = "rgba(0,0,0,.18)";
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 4;
+      ctx.beginPath();
+      roundRect(ctx, xRing, y - RING, CELL_W + RING * 2, CELL_H + RING * 2, 26);
+      ctx.fill();
+      ctx.restore();
+
+      // 사진
       ctx.save();
       ctx.beginPath();
-      roundRect(ctx, x, y, CELL_W, CELL_H, 18);
+      roundRect(ctx, xPhoto, y, CELL_W, CELL_H, 18);
       ctx.clip();
-      ctx.drawImage(state.frames[i], x, y, CELL_W, CELL_H);
+      ctx.drawImage(state.frames[i], xPhoto, y, CELL_W, CELL_H);
       ctx.restore();
       ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 6;
-      roundRect(ctx, x, y, CELL_W, CELL_H, 18);
+      ctx.lineWidth = 5;
+      roundRect(ctx, xPhoto, y, CELL_W, CELL_H, 18);
       ctx.stroke();
+
+      // 모서리 반짝이 스티커
+      ctx.font = "26px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("✨", xPhoto + CELL_W - 6, y + 4);
+
       y += CELL_H + GAP;
+
+      // 사진 사이 구분 장식
+      if (i < state.frames.length - 1){
+        ctx.font = "24px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(DIVIDER_EMOJI[i % DIVIDER_EMOJI.length], STRIP_W / 2, y - GAP / 2);
+      }
     }
 
-    // 푸터: 문구 + 날짜
-    ctx.fillStyle = "#2E4A2E";
-    ctx.font = "bold 22px 'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
-    ctx.fillText("20주년 생일파티 🌱 2026. 10. 24", STRIP_W/2, STRIP_H - 44);
-    ctx.font = "16px 'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
-    ctx.fillStyle = "#5a7a5a";
-    ctx.fillText("우리 함께한 20년, 앞으로도 쭉!", STRIP_W/2, STRIP_H - 16);
+    drawStripFooter(ctx);
 
-    return c.toDataURL("image/jpeg", 0.88);
+    return c.toDataURL("image/jpeg", 0.9);
+  }
+
+  function drawStripBackground(ctx){
+    var g = ctx.createLinearGradient(0, 0, STRIP_W, STRIP_H);
+    g.addColorStop(0, "#FFF6DE");
+    g.addColorStop(0.5, "#F5FBEF");
+    g.addColorStop(1, "#E3F5E3");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, STRIP_W, STRIP_H);
+
+    var deco = ["✨", "⭐", "🌱", "🎈", "🎊"];
+    var footerTop = STRIP_H - FOOTER_H;
+    var positions = [
+      [34, 140], [STRIP_W - 34, 140], [64, 30], [STRIP_W - 64, 30],
+      [34, footerTop + 30], [STRIP_W - 34, footerTop + 30],
+      [64, STRIP_H - 20], [STRIP_W - 64, STRIP_H - 20]
+    ];
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.font = "24px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    positions.forEach(function(p, idx){ ctx.fillText(deco[idx % deco.length], p[0], p[1]); });
+    ctx.restore();
+  }
+
+  function drawStripHeader(ctx){
+    try { ctx.drawImage(logoImg, STRIP_W / 2 - 32, 14, 64, 64); } catch(e){}
+
+    var ribbonY = 84, ribbonH = 46, ribbonW = 420;
+    var rx = STRIP_W / 2 - ribbonW / 2;
+    var g = ctx.createLinearGradient(rx, 0, rx + ribbonW, 0);
+    g.addColorStop(0, "#FF8A65");
+    g.addColorStop(1, "#F48FB1");
+    ctx.save();
+    ctx.fillStyle = g;
+    ctx.shadowColor = "rgba(0,0,0,.15)";
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
+    ctx.beginPath();
+    roundRect(ctx, rx, ribbonY, ribbonW, ribbonH, ribbonH / 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "bold 24px 'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
+    ctx.fillText("🎉 새싹나라유치원 🎉", STRIP_W / 2, ribbonY + ribbonH / 2 + 2);
+
+    ctx.fillStyle = "#2E4A2E";
+    ctx.font = "bold 20px 'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
+    ctx.fillText("20주년 생일파티", STRIP_W / 2, ribbonY + ribbonH + 28);
+  }
+
+  function drawStripFooter(ctx){
+    var topY = STRIP_H - FOOTER_H;
+
+    ctx.save();
+    ctx.strokeStyle = "#C8E6C9";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([2, 10]);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(30, topY + 14);
+    ctx.lineTo(STRIP_W - 30, topY + 14);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#2E4A2E";
+    ctx.font = "bold 24px 'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
+    ctx.fillText("🎂 20주년 생일파티 🎂", STRIP_W / 2, topY + 56);
+
+    ctx.fillStyle = "#FF8A65";
+    ctx.font = "bold 18px 'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
+    ctx.fillText("2026. 10. 24", STRIP_W / 2, topY + 84);
+
+    ctx.fillStyle = "#5a7a5a";
+    ctx.font = "14px 'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
+    ctx.fillText("우리 함께한 20년, 앞으로도 쭉! 🌱", STRIP_W / 2, topY + 106);
   }
 
   function roundRect(ctx, x, y, w, h, r){
