@@ -102,12 +102,12 @@
   #flash.on{opacity:1;transition:opacity .08s ease-out}
   #flash.off{opacity:0;transition:opacity .4s ease-in}
   #cancelBtn{
-    position:absolute;top:20px;right:20px;pointer-events:auto;
+    position:absolute;top:20px;right:20px;pointer-events:auto;z-index:6;
     background:rgba(0,0,0,.45);color:#fff;border:none;border-radius:100px;
     padding:12px 22px;font-size:16px;
   }
   #flipBtn{
-    position:absolute;top:20px;left:20px;pointer-events:auto;
+    position:absolute;top:20px;left:20px;pointer-events:auto;z-index:6;
     background:rgba(0,0,0,.45);color:#fff;border:none;border-radius:100px;
     padding:12px 16px;font-size:18px;
   }
@@ -115,6 +115,20 @@
     position:absolute;left:50%;bottom:60px;transform:translateX(-50%);
     background:rgba(178,59,59,.92);color:#fff;padding:16px 26px;border-radius:16px;
     font-size:18px;font-weight:700;text-align:center;max-width:80vw;
+  }
+  #readyOverlay{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.55);z-index:5;
+  }
+  .ready-card{
+    background:#fff;border-radius:24px;padding:36px 32px;text-align:center;max-width:80vw;
+    box-shadow:0 14px 40px rgba(0,0,0,.3);
+  }
+  .ready-card p{font-size:clamp(18px,2.6vw,24px);color:#2E4A2E;font-weight:700;margin:0 0 22px;line-height:1.5}
+  #readyStartBtn{
+    background:linear-gradient(90deg,#FF8A65,#F48FB1);color:#fff;border:none;
+    border-radius:100px;padding:18px 46px;font-size:20px;font-weight:800;
+    box-shadow:0 8px 20px rgba(0,0,0,.2);
   }
 
   /* ---- 처리 중 ---- */
@@ -124,10 +138,16 @@
 
   /* ---- 결과 화면 ---- */
   #screen-result h2{color:var(--green-dark);font-size:clamp(18px,2.6vw,26px);margin:0 0 14px;text-align:center}
-  #stripPreview{max-height:38vh;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.2);margin-bottom:20px}
-  #qrBox{background:#fff;padding:16px;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.15);margin-bottom:18px}
-  #qrBox img{display:block;width:min(46vw,260px);height:auto}
-  #screen-result .scan-hint{color:#3a5a3a;font-size:clamp(16px,2.2vw,22px);font-weight:700;margin-bottom:30px}
+  #stripPreview{max-height:32vh;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.2);margin-bottom:16px}
+  .local-save-row{display:flex;gap:12px;margin-bottom:18px}
+  .btn-save{
+    background:#fff;color:#2E4A2E;border:2px solid #4CAF50;border-radius:100px;
+    padding:12px 22px;font-size:15px;font-weight:800;box-shadow:0 4px 12px rgba(0,0,0,.1);
+  }
+  .save-divider{color:#7a9a7a;font-size:13px;font-weight:700;margin-bottom:12px}
+  #qrBox{background:#fff;padding:16px;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.15);margin-bottom:10px}
+  #qrBox img{display:block;width:min(38vw,200px);height:auto}
+  #screen-result .scan-hint{color:#3a5a3a;font-size:clamp(14px,2vw,18px);font-weight:700;margin-bottom:24px}
   #resetBtn{background:var(--green);color:#fff;border:none;border-radius:100px;font-size:18px;font-weight:700;padding:16px 44px}
   #errBox{color:#b23b3b;font-size:16px;margin-top:14px;text-align:center}
 
@@ -199,6 +219,12 @@
   <button id="flipBtn">🔄</button>
   <button id="cancelBtn">취소</button>
   <div id="camError" class="hidden"></div>
+  <div id="readyOverlay" class="hidden">
+    <div class="ready-card">
+      <p>이제 시작해볼까요?<br>준비되셨다면, 시작 버튼을 눌러주세요</p>
+      <button id="readyStartBtn">📸 시작</button>
+    </div>
+  </div>
 </div>
 
 <!-- 처리 중 -->
@@ -209,8 +235,13 @@
 
 <!-- 결과 화면 -->
 <div id="screen-result" class="screen">
-  <h2>완성됐어요! 아래 QR을 스캔해서 받아가세요</h2>
+  <h2>완성됐어요!</h2>
   <img id="stripPreview" alt="완성된 네컷 사진">
+  <div class="local-save-row">
+    <button id="savePhotoBtn" class="btn-save">📸 이 기기에 사진 저장</button>
+    <button id="saveVideoBtn" class="btn-save hidden">🎬 이 기기에 영상 저장</button>
+  </div>
+  <div class="save-divider">— 다른 기기(휴대폰)로 보내려면 —</div>
   <div id="qrBox"></div>
   <div class="scan-hint">📱 휴대폰 카메라로 QR을 스캔하면 사진과 영상을 받을 수 있어요</div>
   <button id="resetBtn">처음 화면으로</button>
@@ -219,6 +250,7 @@
 
 <canvas id="workCanvas" class="hidden"></canvas>
 <canvas id="stripCanvas" class="hidden"></canvas>
+<canvas id="movingCanvas" class="hidden"></canvas>
 
 <script>
 //---------------------------------------------------------------------
@@ -2559,6 +2591,7 @@ var qrcode = function() {
   var COUNTDOWN_SECONDS = 3;
   var GAP_BETWEEN_SHOTS_MS = 900;
   var AUTO_RESET_MS = 45000;
+  var MOVING_CLIP_MS = 4000;
 
   // 공통 캔버스 레이아웃 (20주년 / 데일리 템플릿에서 사용)
   var CELL_W = 580, CELL_H = 420, GAP = 36, HEADER_H = 192, FOOTER_H = 120, RING = 10;
@@ -2576,9 +2609,10 @@ var qrcode = function() {
   var els = {};
   ["screen-start","screen-caption","screen-camera","screen-processing","screen-result",
    "camVideo","shotCounter","camHint","countdownNum","flash",
-   "cancelBtn","flipBtn","resetBtn","camError",
+   "cancelBtn","flipBtn","resetBtn","camError","readyOverlay","readyStartBtn",
    "captionInput","captionBackBtn","captionStartBtn",
-   "stripPreview","qrBox","processingText","errBox","workCanvas","stripCanvas"
+   "stripPreview","qrBox","processingText","errBox","workCanvas","stripCanvas","movingCanvas",
+   "savePhotoBtn","saveVideoBtn"
   ].forEach(function(id){ els[id.replace(/-([a-z])/g, function(_,c){return c.toUpperCase();})] = document.getElementById(id); });
 
   var logoImg = new Image();
@@ -2590,10 +2624,15 @@ var qrcode = function() {
     recorder: null,
     recordedChunks: [],
     frames: [],
+    shotClips: [],
     cancelled: false,
     resetTimer: null,
     template: "anniversary",
-    caption: ""
+    caption: "",
+    readyResolve: null,
+    lastPhotoDataUrl: null,
+    lastVideoObjectUrl: null,
+    lastVideoExt: "webm"
   };
 
   function showScreen(name){
@@ -2629,7 +2668,11 @@ var qrcode = function() {
   }
 
   function pickMimeType(){
-    var candidates = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    // mp4(h264)를 우선 시도 - 아이폰에서도 바로 재생/저장되도록. 태블릿이 지원 안 하면 webm으로 자동 폴백
+    var candidates = [
+      "video/mp4;codecs=h264,aac", "video/mp4;codecs=avc1", "video/mp4",
+      "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"
+    ];
     for (var i=0;i<candidates.length;i++){
       if (window.MediaRecorder && MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
     }
@@ -2685,6 +2728,25 @@ var qrcode = function() {
     return c;
   }
 
+  // video/canvas 등 어떤 소스든 dx,dy,dw,dh 영역에 (미러 적용, cover 크롭) 그려주는 공용 헬퍼
+  // - 무빙 네컷 합성 시 각 칸에 재생 중인 영상을 그릴 때 사용
+  function drawMirroredCover(ctx, source, sourceW, sourceH, dx, dy, dw, dh){
+    if (!sourceW || !sourceH) return;
+    var targetRatio = dw / dh;
+    var srcRatio = sourceW / sourceH;
+    var sx, sy, sw, sh;
+    if (srcRatio > targetRatio){
+      sh = sourceH; sw = sourceH * targetRatio; sy = 0; sx = (sourceW - sw) / 2;
+    } else {
+      sw = sourceW; sh = sourceW / targetRatio; sx = 0; sy = (sourceH - sh) / 2;
+    }
+    ctx.save();
+    ctx.translate(dx + dw, dy);
+    ctx.scale(-1, 1);
+    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, dw, dh);
+    ctx.restore();
+  }
+
   async function runCountdown(n){
     for (var i = n; i >= 1; i--){
       if (state.cancelled) return;
@@ -2702,28 +2764,30 @@ var qrcode = function() {
     els.flash.classList.add("off");
   }
 
+  // 인생네컷처럼 각 프레임 안에서 그 순간이 움직이도록, 한 통짜리 영상 대신
+  // 샷마다 짧은 영상을 따로 녹화해둠 (나중에 buildMovingStrip에서 4칸에 각각 재생하며 합성)
   async function runShootingSequence(){
     state.frames = [];
+    state.shotClips = [];
     state.cancelled = false;
     els.camHint.textContent = "준비하세요!";
-    startRecording();
-    await sleep(500);
 
     for (var i = 0; i < SHOT_COUNT; i++){
-      if (state.cancelled) return null;
+      if (state.cancelled) return;
       els.shotCounter.textContent = (i+1) + " / " + SHOT_COUNT;
       els.camHint.textContent = i === 0 ? "웃어주세요~" : "다시 한번!";
+      startRecording();
       await runCountdown(COUNTDOWN_SECONDS);
-      if (state.cancelled) return null;
+      if (state.cancelled) { await stopRecording(); return; }
       await flashEffect();
       state.frames.push(captureCellFromVideo());
       await sleep(GAP_BETWEEN_SHOTS_MS);
+      var clip = await stopRecording();
+      if (clip) state.shotClips.push(clip);
     }
 
     els.camHint.textContent = "완료!";
-    await sleep(400);
-    var videoBlob = await stopRecording();
-    return videoBlob;
+    await sleep(300);
   }
 
   function roundRect(ctx, x, y, w, h, r){
@@ -2854,13 +2918,54 @@ var qrcode = function() {
     }
   }
 
+  // drawPhotoGrid의 영상판 - 정지 사진 대신 재생 중인 영상을 각 칸에 그림 (무빙 네컷 합성용)
+  function drawVideoGrid(ctx, videos, ringColors, dividerEmoji){
+    var y = HEADER_H;
+    for (var i = 0; i < videos.length; i++){
+      var xRing = (STRIP_W - (CELL_W + RING * 2)) / 2;
+      var xPhoto = xRing + RING;
+      var color = ringColors[i % ringColors.length];
+
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.shadowColor = "rgba(0,0,0,.18)";
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 4;
+      ctx.beginPath();
+      roundRect(ctx, xRing, y - RING, CELL_W + RING * 2, CELL_H + RING * 2, 26);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      roundRect(ctx, xPhoto, y, CELL_W, CELL_H, 18);
+      ctx.clip();
+      drawMirroredCover(ctx, videos[i], videos[i].videoWidth, videos[i].videoHeight, xPhoto, y, CELL_W, CELL_H);
+      ctx.restore();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 5;
+      roundRect(ctx, xPhoto, y, CELL_W, CELL_H, 18);
+      ctx.stroke();
+
+      ctx.font = "26px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("✨", xPhoto + CELL_W - 6, y + 4);
+
+      y += CELL_H + GAP;
+
+      if (i < videos.length - 1){
+        ctx.font = "24px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(dividerEmoji[i % dividerEmoji.length], STRIP_W / 2, y - GAP / 2);
+      }
+    }
+  }
+
   // ===================== 템플릿 1: 20주년 파티 =====================
 
-  function composeAnniversaryStrip(ctx){
-    drawFestiveBackground(ctx, [[0,"#FFF6DE"],[0.5,"#F5FBEF"],[1,"#E3F5E3"]], ["✨","⭐","🌱","🎈","🎊"]);
-    drawRibbonHeader(ctx, "🎉 새싹나라유치원 🎉", "네컷 포토부스", ["#FF8A65","#F48FB1"]);
-    drawPhotoGrid(ctx, ACCENT_COLORS, DIVIDER_EMOJI);
-
+  function drawAnniversaryFooter(ctx){
     var topY = STRIP_H - FOOTER_H;
     drawDashedDivider(ctx, topY);
     ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
@@ -2875,13 +2980,16 @@ var qrcode = function() {
     ctx.fillText("우리 함께한 20년, 앞으로도 쭉! 🌱", STRIP_W / 2, topY + 106);
   }
 
+  function composeAnniversaryStrip(ctx){
+    drawFestiveBackground(ctx, [[0,"#FFF6DE"],[0.5,"#F5FBEF"],[1,"#E3F5E3"]], ["✨","⭐","🌱","🎈","🎊"]);
+    drawRibbonHeader(ctx, "🎉 새싹나라유치원 🎉", "네컷 포토부스", ["#FF8A65","#F48FB1"]);
+    drawPhotoGrid(ctx, ACCENT_COLORS, DIVIDER_EMOJI);
+    drawAnniversaryFooter(ctx);
+  }
+
   // ===================== 템플릿 2: 데일리 =====================
 
-  function composeDailyStrip(ctx){
-    drawFestiveBackground(ctx, [[0,"#E3F6FF"],[0.5,"#F3F0FF"],[1,"#E8FBF3"]], ["🌈","☀️","🍀","💫","🎨"]);
-    drawRibbonHeader(ctx, "🌱 새싹나라유치원 🌱", "오늘의 네컷", ["#4FC3F7","#7E57C2"]);
-    drawPhotoGrid(ctx, DAILY_COLORS, DAILY_DIVIDER);
-
+  function drawDailyFooter(ctx){
     var topY = STRIP_H - FOOTER_H;
     drawDashedDivider(ctx, topY);
     ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
@@ -2903,6 +3011,13 @@ var qrcode = function() {
     ctx.fillStyle = "#5a7a5a";
     ctx.font = "14px 'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
     ctx.fillText("새싹나라유치원과 함께", STRIP_W / 2, topY + 108);
+  }
+
+  function composeDailyStrip(ctx){
+    drawFestiveBackground(ctx, [[0,"#E3F6FF"],[0.5,"#F3F0FF"],[1,"#E8FBF3"]], ["🌈","☀️","🍀","💫","🎨"]);
+    drawRibbonHeader(ctx, "🌱 새싹나라유치원 🌱", "오늘의 네컷", ["#4FC3F7","#7E57C2"]);
+    drawPhotoGrid(ctx, DAILY_COLORS, DAILY_DIVIDER);
+    drawDailyFooter(ctx);
   }
 
   // ===================== 템플릿 3: 낙서 스타일 =====================
@@ -3030,6 +3145,25 @@ var qrcode = function() {
     }
   }
 
+  // drawDoodlePhotoGrid의 영상판 (무빙 네컷 합성용)
+  function drawDoodleVideoGrid(ctx, videos, gap){
+    var y = HEADER_H;
+    var xPhoto = (STRIP_W - CELL_W) / 2;
+    for (var i = 0; i < videos.length; i++){
+      ctx.save();
+      ctx.beginPath();
+      roundRect(ctx, xPhoto, y, CELL_W, CELL_H, 14);
+      ctx.clip();
+      drawMirroredCover(ctx, videos[i], videos[i].videoWidth, videos[i].videoHeight, xPhoto, y, CELL_W, CELL_H);
+      ctx.restore();
+
+      drawSketchyFrame(ctx, xPhoto, y, CELL_W, CELL_H);
+      drawTape(ctx, xPhoto + 70, y, 130, 38, TAPE_COLORS[i % TAPE_COLORS.length], -6);
+
+      y += CELL_H + gap;
+    }
+  }
+
   function drawDoodleGapCaptions(ctx, gap){
     var texts = ["넌 누구?", "난 누구?", "완전 신기함 ✨"];
     var colors = ["#E53935", "#1E88E5", "#8E24AA"];
@@ -3081,6 +3215,103 @@ var qrcode = function() {
     return c.toDataURL("image/jpeg", 0.9);
   }
 
+  function renderMovingFrame(ctx, videos, gap, stripH){
+    if (state.template === "doodle"){
+      drawDoodleBackground(ctx, stripH);
+      drawDoodleHeader(ctx);
+      drawDoodleVideoGrid(ctx, videos, gap);
+      drawDoodleGapCaptions(ctx, gap);
+      drawDoodleFooter(ctx, stripH);
+    } else if (state.template === "daily"){
+      drawFestiveBackground(ctx, [[0,"#E3F6FF"],[0.5,"#F3F0FF"],[1,"#E8FBF3"]], ["🌈","☀️","🍀","💫","🎨"]);
+      drawRibbonHeader(ctx, "🌱 새싹나라유치원 🌱", "오늘의 네컷", ["#4FC3F7","#7E57C2"]);
+      drawVideoGrid(ctx, videos, DAILY_COLORS, DAILY_DIVIDER);
+      drawDailyFooter(ctx);
+    } else {
+      drawFestiveBackground(ctx, [[0,"#FFF6DE"],[0.5,"#F5FBEF"],[1,"#E3F5E3"]], ["✨","⭐","🌱","🎈","🎊"]);
+      drawRibbonHeader(ctx, "🎉 새싹나라유치원 🎉", "네컷 포토부스", ["#FF8A65","#F48FB1"]);
+      drawVideoGrid(ctx, videos, ACCENT_COLORS, DIVIDER_EMOJI);
+      drawAnniversaryFooter(ctx);
+    }
+  }
+
+  // 샷마다 따로 녹화해둔 짧은 영상 4개를 각자 자기 칸에서 재생시키면서 그 화면 전체를
+  // 다시 녹화해 "네컷 프레임 안에서 움직이는" 무빙 영상을 합성함 (실제 인생네컷 무빙컷과 같은 방식)
+  async function buildMovingStrip(){
+    if (!state.shotClips || state.shotClips.length < SHOT_COUNT) return null;
+
+    var videos = state.shotClips.map(function(blob){
+      var v = document.createElement("video");
+      v.src = URL.createObjectURL(blob);
+      v.muted = true; v.loop = true; v.playsInline = true;
+      return v;
+    });
+
+    await Promise.all(videos.map(function(v){
+      return new Promise(function(resolve){
+        v.oncanplay = resolve;
+        v.onerror = resolve; // 재생 준비가 안 돼도 전체 합성은 계속 진행
+        v.play().catch(function(){});
+      });
+    }));
+
+    var gap = state.template === "doodle" ? DOODLE_GAP : GAP;
+    var stripH = state.template === "doodle"
+      ? HEADER_H + SHOT_COUNT * CELL_H + (SHOT_COUNT - 1) * gap + FOOTER_H
+      : STRIP_H;
+
+    var c = els.movingCanvas;
+    c.width = STRIP_W; c.height = stripH;
+    var ctx = c.getContext("2d");
+
+    var cleanup = function(){
+      videos.forEach(function(v){ v.pause(); URL.revokeObjectURL(v.src); });
+    };
+
+    var stream;
+    try {
+      stream = c.captureStream(20);
+    } catch(e){
+      cleanup();
+      return null;
+    }
+
+    var mime = pickMimeType();
+    var opts = { videoBitsPerSecond: 1500000 };
+    if (mime) opts.mimeType = mime;
+    var recorder;
+    try {
+      recorder = new MediaRecorder(stream, opts);
+    } catch(e){
+      cleanup();
+      return null;
+    }
+
+    var chunks = [];
+    recorder.ondataavailable = function(e){ if (e.data && e.data.size > 0) chunks.push(e.data); };
+    var stopped = new Promise(function(resolve){
+      recorder.onstop = function(){ resolve(new Blob(chunks, { type: recorder.mimeType || "video/webm" })); };
+    });
+
+    recorder.start();
+
+    var drawing = true;
+    function frameLoop(){
+      if (!drawing) return;
+      renderMovingFrame(ctx, videos, gap, stripH);
+      requestAnimationFrame(frameLoop);
+    }
+    frameLoop();
+
+    await sleep(MOVING_CLIP_MS);
+    drawing = false;
+    recorder.stop();
+    var finalBlob = await stopped;
+
+    cleanup();
+    return finalBlob;
+  }
+
   function blobToBase64(blob){
     return new Promise(function(resolve, reject){
       var reader = new FileReader();
@@ -3123,9 +3354,24 @@ var qrcode = function() {
     state.resetTimer = setTimeout(goStart, AUTO_RESET_MS);
   }
 
+  function waitForReady(){
+    els.readyOverlay.classList.remove("hidden");
+    return new Promise(function(resolve){ state.readyResolve = resolve; });
+  }
+
+  function resolveReady(proceed){
+    els.readyOverlay.classList.add("hidden");
+    if (state.readyResolve){
+      var r = state.readyResolve;
+      state.readyResolve = null;
+      r(proceed);
+    }
+  }
+
   async function goStart(){
     clearTimeout(state.resetTimer);
     state.cancelled = true;
+    resolveReady(false);
     stopCamera();
     els.errBox.classList.add("hidden");
     showScreen("screen-start");
@@ -3146,7 +3392,10 @@ var qrcode = function() {
       return;
     }
 
-    var videoBlob = await runShootingSequence();
+    var proceed = await waitForReady();
+    if (!proceed || state.cancelled){ stopCamera(); showScreen("screen-start"); return; }
+
+    await runShootingSequence();
     if (state.cancelled){ stopCamera(); showScreen("screen-start"); return; }
 
     stopCamera();
@@ -3154,6 +3403,20 @@ var qrcode = function() {
     els.processingText.textContent = "사진 만드는 중...";
     var photoDataUrl = composeStrip();
     els.stripPreview.src = photoDataUrl;
+
+    els.processingText.textContent = "영상 합성 중... (각 사진 칸에서 움직이는 영상을 만들고 있어요)";
+    var videoBlob = await buildMovingStrip();
+
+    // 업로드 성공 여부와 무관하게 이 기기에서 바로 저장할 수 있도록 로컬에 준비해둠
+    state.lastPhotoDataUrl = photoDataUrl;
+    if (state.lastVideoObjectUrl) URL.revokeObjectURL(state.lastVideoObjectUrl);
+    state.lastVideoObjectUrl = null;
+    els.saveVideoBtn.classList.add("hidden");
+    if (videoBlob){
+      state.lastVideoExt = videoBlob.type.indexOf("mp4") >= 0 ? "mp4" : "webm";
+      state.lastVideoObjectUrl = URL.createObjectURL(videoBlob);
+      els.saveVideoBtn.classList.remove("hidden");
+    }
 
     els.processingText.textContent = "업로드 중... (와이파이 상태에 따라 시간이 걸릴 수 있어요)";
     try {
@@ -3165,10 +3428,19 @@ var qrcode = function() {
     } catch(err){
       showScreen("screen-result");
       els.qrBox.innerHTML = "";
-      els.errBox.textContent = "업로드에 실패했어요. 와이파이를 확인하고 다시 시도해주세요.";
+      els.errBox.textContent = "업로드에 실패했어요. 와이파이를 확인하고 다시 시도해주세요. (이 기기에는 저장할 수 있어요)";
       els.errBox.classList.remove("hidden");
       armAutoReset();
     }
+  }
+
+  function saveLocally(href, filename){
+    var a = document.createElement("a");
+    a.href = href;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   document.querySelectorAll(".template-card").forEach(function(btn){
@@ -3193,10 +3465,18 @@ var qrcode = function() {
 
   els.resetBtn.addEventListener("click", goStart);
   els.cancelBtn.addEventListener("click", goStart);
+  els.readyStartBtn.addEventListener("click", function(){ resolveReady(true); });
   els.flipBtn.addEventListener("click", async function(){
     state.facingMode = state.facingMode === "user" ? "environment" : "user";
     stopCamera();
     try { await startCamera(); } catch(e){}
+  });
+
+  els.savePhotoBtn.addEventListener("click", function(){
+    if (state.lastPhotoDataUrl) saveLocally(state.lastPhotoDataUrl, "새싹나라_네컷.jpg");
+  });
+  els.saveVideoBtn.addEventListener("click", function(){
+    if (state.lastVideoObjectUrl) saveLocally(state.lastVideoObjectUrl, "새싹나라_영상." + state.lastVideoExt);
   });
 
   ["click","touchstart"].forEach(function(evt){
