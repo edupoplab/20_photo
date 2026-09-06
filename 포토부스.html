@@ -47,6 +47,12 @@
   }
   .start-sub{position:relative;z-index:1;color:#4a6b4a;font-size:clamp(14px,2vw,18px);margin:0 0 26px;font-weight:700}
 
+  #fullscreenBtn{
+    position:fixed;top:16px;right:16px;z-index:20;
+    background:rgba(46,74,46,.55);color:#fff;border:none;border-radius:100px;
+    padding:10px 18px;font-size:14px;font-weight:700;
+  }
+
   .template-grid{position:relative;z-index:1;display:flex;gap:16px;flex-wrap:wrap;justify-content:center;padding:0 20px;max-width:760px}
   .template-card{
     border:none;border-radius:26px;padding:24px 20px;width:min(28vw,200px);
@@ -164,6 +170,8 @@
 </style>
 </head>
 <body>
+
+<button id="fullscreenBtn">⛶ 전체화면</button>
 
 <!-- 시작 화면: 템플릿 선택 -->
 <div id="screen-start" class="screen active">
@@ -3137,7 +3145,7 @@ var qrcode = function() {
    "cancelBtn","flipBtn","resetBtn","camError","readyOverlay","readyStartBtn",
    "captionInput","captionBackBtn","captionStartBtn",
    "stripPreview","qrBox","processingText","errBox","workCanvas","stripCanvas","movingCanvas",
-   "savePhotoBtn","saveVideoBtn","osWarning"
+   "savePhotoBtn","saveVideoBtn","osWarning","fullscreenBtn"
   ].forEach(function(id){ els[id.replace(/-([a-z])/g, function(_,c){return c.toUpperCase();})] = document.getElementById(id); });
 
   var logoImg = new Image();
@@ -4026,6 +4034,27 @@ var qrcode = function() {
   ["click","touchstart"].forEach(function(evt){
     document.getElementById("screen-result").addEventListener(evt, armAutoReset);
   });
+
+  // 전체화면 토글 - 태블릿에서 주소창 없이 꽉 찬 화면으로 쓸 수 있게.
+  // 화면 하나짜리 앱이라 한 번 켜두면 어느 화면으로 넘어가도 전체화면이 유지됨
+  function isFullscreen(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+  function updateFullscreenBtn(){
+    els.fullscreenBtn.textContent = isFullscreen() ? "⛶ 전체화면 해제" : "⛶ 전체화면";
+  }
+  els.fullscreenBtn.addEventListener("click", function(){
+    var el = document.documentElement;
+    if (!isFullscreen()){
+      var req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (req) req.call(el).catch(function(){});
+    } else {
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) exit.call(document);
+    }
+  });
+  document.addEventListener("fullscreenchange", updateFullscreenBtn);
+  document.addEventListener("webkitfullscreenchange", updateFullscreenBtn);
 
 })();
 </script>
