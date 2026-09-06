@@ -4058,7 +4058,15 @@ var qrcode = function() {
     if (!isFullscreen()){
       state.wantFullscreen = true;
       var req = el.requestFullscreen || el.webkitRequestFullscreen;
-      if (req) req.call(el).catch(function(){});
+      if (!req){
+        els.fullscreenBtn.textContent = "⛶ 이 브라우저는 미지원";
+        setTimeout(updateFullscreenBtn, 2500);
+        return;
+      }
+      req.call(el).catch(function(err){
+        els.fullscreenBtn.textContent = "⛶ 실패: " + (err && err.name ? err.name : "권한 거부");
+        setTimeout(updateFullscreenBtn, 2500);
+      });
     } else {
       state.wantFullscreen = false;
       var exit = document.exitFullscreen || document.webkitExitFullscreen;
