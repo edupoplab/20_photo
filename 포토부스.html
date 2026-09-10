@@ -144,6 +144,8 @@
 
   /* ---- 결과 화면 ---- */
   #screen-result h2{color:var(--green-dark);font-size:clamp(18px,2.6vw,26px);margin:0 0 14px;text-align:center}
+  .result-cols{display:flex;flex-direction:column;align-items:center}
+  .result-left,.result-right{display:flex;flex-direction:column;align-items:center}
   #stripPreview{max-height:32vh;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.2);margin-bottom:16px}
   .local-save-row{display:flex;gap:12px;margin-bottom:18px}
   .btn-save{
@@ -161,6 +163,19 @@
   #screen-result .scan-hint{color:#3a5a3a;font-size:clamp(14px,2vw,18px);font-weight:700;margin-bottom:24px}
   #resetBtn{background:var(--green);color:#fff;border:none;border-radius:100px;font-size:18px;font-weight:700;padding:16px 44px}
   #errBox{color:#b23b3b;font-size:16px;margin-top:14px;text-align:center}
+
+  /* 가로로 놓인 태블릿에서는 사진(왼쪽) / QR(오른쪽)을 양옆으로 배치해 크게 보이도록 */
+  @media (min-width:820px){
+    #screen-result h2{font-size:clamp(24px,3vw,34px);margin-bottom:24px}
+    .result-cols{flex-direction:row;align-items:center;justify-content:center;gap:min(7vw,72px)}
+    #stripPreview{max-height:min(64vh,74vw);margin-bottom:20px}
+    #qrBox{margin-bottom:14px}
+    #qrBox img{width:min(32vw,340px)}
+    .save-divider{font-size:15px;margin-bottom:14px}
+    .os-warning{font-size:15px;max-width:360px}
+    #screen-result .scan-hint{font-size:18px;margin-bottom:0}
+    #resetBtn{margin-top:28px;font-size:20px;padding:18px 56px}
+  }
 
   .hidden{display:none !important}
 
@@ -252,15 +267,21 @@
 <!-- 결과 화면 -->
 <div id="screen-result" class="screen">
   <h2>완성됐어요!</h2>
-  <img id="stripPreview" alt="완성된 네컷 사진">
-  <div class="local-save-row">
-    <button id="savePhotoBtn" class="btn-save">📸 이 기기에 사진 저장</button>
-    <button id="saveVideoBtn" class="btn-save hidden">🎬 이 기기에 영상 저장</button>
+  <div class="result-cols">
+    <div class="result-left">
+      <img id="stripPreview" alt="완성된 네컷 사진">
+      <div class="local-save-row">
+        <button id="savePhotoBtn" class="btn-save">📸 이 기기에 사진 저장</button>
+        <button id="saveVideoBtn" class="btn-save hidden">🎬 이 기기에 영상 저장</button>
+      </div>
+    </div>
+    <div class="result-right">
+      <div class="save-divider">— 다른 기기(휴대폰)로 보내려면 —</div>
+      <div class="os-warning hidden" id="osWarning">📌 <b>갤럭시(안드로이드) 폰</b>으로 스캔하시는 걸 추천드려요! <b>아이폰</b>은 영상이 재생되지 않을 수 있어요.</div>
+      <div id="qrBox"></div>
+      <div class="scan-hint">📱 휴대폰 카메라로 QR을 스캔하면 사진과 영상을 받을 수 있어요</div>
+    </div>
   </div>
-  <div class="save-divider">— 다른 기기(휴대폰)로 보내려면 —</div>
-  <div class="os-warning hidden" id="osWarning">📌 <b>갤럭시(안드로이드) 폰</b>으로 스캔하시는 걸 추천드려요! <b>아이폰</b>은 영상이 재생되지 않을 수 있어요.</div>
-  <div id="qrBox"></div>
-  <div class="scan-hint">📱 휴대폰 카메라로 QR을 스캔하면 사진과 영상을 받을 수 있어요</div>
   <button id="resetBtn">처음 화면으로</button>
   <div id="errBox" class="hidden"></div>
 </div>
